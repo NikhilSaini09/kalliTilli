@@ -3,29 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Card Game</title>
+    <title>Kalli Tilli</title>
     <link rel="stylesheet" href="style.css">
     <!-- Add PeerJS Library -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
     <!-- New Network Controls -->
-    <div id="network-controls">
+    <div id="network-menu">
+        <input type="text" id="playerName" placeholder="Your Name (Required)">
         <button id="hostBtn">Host Game</button>
         <span id="roomIdDisplay"></span>
         <input type="text" id="joinId" placeholder="Enter Room ID">
         <button id="joinBtn">Join Game</button>
     </div>
 
-    <!-- Existing Controls -->
-    <div id="controls">
-        <button id="dealBtn">Deal New Hand</button>
-        <button id="saveBtn">Save Game State</button>
+    <!-- Game Controls (Host only for dealing) -->
+    <div id="controls" style="display: none;">
+        <button id="dealBtn">Deal</button>
+        <button id="saveBtn">Save Game</button>
         <input type="file" id="loadInput" accept=".json">
     </div>
 
-    <div id="game-board"></div>
-    <div id="player-hand"></div>
+    <!-- Poker Table Layout -->
+    <div id="poker-table">
+        <div id="opponents-area"></div>
+        <div id="center-board"></div>
+        <div id="my-area"></div>
+    </div>
 
     <script src="game.js"></script>
 </body>

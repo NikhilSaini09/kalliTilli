@@ -1,10 +1,7 @@
-* {
-    box-sizing: border-box;
-    font-family: sans-serif;
-}
+* { box-sizing: border-box; font-family: sans-serif; }
 
 body {
-    background-color: #2e7d32;
+    background-color: #1b5e20; /* Darker casino green */
     margin: 0;
     padding: 10px;
     display: flex;
@@ -13,15 +10,16 @@ body {
     min-height: 100vh;
 }
 
-#controls {
-    margin-bottom: 20px;
-    background: rgba(0,0,0,0.2);
+#network-menu, #controls {
+    margin-bottom: 15px;
+    background: rgba(0,0,0,0.3);
     padding: 10px;
     border-radius: 8px;
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
     justify-content: center;
+    align-items: center;
 }
 
 button, input::file-selector-button {
@@ -33,16 +31,61 @@ button, input::file-selector-button {
     background-color: #fff;
 }
 
-#player-hand {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
+#roomIdDisplay { color: white; font-weight: bold; }
+input[type="text"] { padding: 10px; border-radius: 5px; border: none; }
+
+/* The Poker Table */
+#poker-table {
     width: 100%;
-    max-width: 800px;
-    margin-top: auto; 
+    max-width: 900px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #2e7d32;
+    border: 10px solid #5d4037; /* Wooden rim */
+    border-radius: 100px; /* Oval shape */
+    padding: 30px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
 }
 
+#opponents-area {
+    display: flex;
+    justify-content: space-around;
+    min-height: 120px;
+}
+
+.opponent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+    font-size: 14px;
+}
+
+.opponent-cards {
+    display: flex;
+    gap: -40px; /* Overlap face-down cards */
+}
+
+#center-board {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 140px;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    padding: 10px;
+}
+
+#my-area {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    min-height: 120px;
+}
+
+/* Card Styling */
 .card {
     width: 80px;
     height: 120px;
@@ -53,7 +96,7 @@ button, input::file-selector-button {
     align-items: center;
     font-size: 24px;
     font-weight: bold;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
     border: 1px solid #ccc;
     user-select: none;
 }
@@ -61,30 +104,19 @@ button, input::file-selector-button {
 .red { color: #d32f2f; }
 .black { color: #212121; }
 
-#network-controls {
-    margin-bottom: 10px;
-    background: rgba(0,0,0,0.2);
-    padding: 10px;
-    border-radius: 8px;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
+.face-down {
+    background: repeating-linear-gradient(
+        45deg,
+        #b71c1c,
+        #b71c1c 10px,
+        #fff 10px,
+        #fff 20px
+    );
+    border: 2px solid white;
 }
 
-#roomIdDisplay {
-    color: white;
-    font-weight: bold;
-    font-size: 18px;
-    background: rgba(0,0,0,0.3);
-    padding: 8px;
-    border-radius: 4px;
+#my-area .card {
+    cursor: pointer;
+    transition: transform 0.1s;
 }
-
-input[type="text"] {
-    padding: 10px;
-    font-size: 16px;
-    border-radius: 5px;
-    border: none;
-}
+#my-area .card:hover { transform: translateY(-10px); }
