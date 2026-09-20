@@ -23,8 +23,11 @@ let gameState = {
     turnIndex: 0,         
     highestBid: { playerId: null, amount: 0, playerName: "" },
     trumpSuit: null,      
-    calledCards: []       
+    calledCards: [],
+    spectators: []
 };
+let gameStats = {}; 
+// Schema: { "Alice": { gamesPlayed: 3, wins: 2, losses: 1 }, ... }
 
 function generateDeck() {
     let deck = [];
@@ -134,19 +137,32 @@ function evaluateRoundEnd() {
         if (p.team === 'UNKNOWN') p.team = 'DEFENDER_TEAM';
     });
 
-    let bidderTeamPoints = 0;
-    let bidderNames = [];
-
+    let bTotal = 0;
     gameState.players.forEach(p => {
-        if (p.team === 'BIDDER_TEAM') {
-            bidderTeamPoints += p.points;
-            bidderNames.push(p.name);
-        }
+        if (p.team === 'BIDDER_TEAM') bTotal += p.points;
     });
 
-    const bidMet = bidderTeamPoints >= gameState.highestBid.amount;
-    const statusMsg = bidMet ? 'WON' : 'LOST';
-    alert(`Game Over! The Bidder Team (${bidderNames.join(', ')}) scored ${bidderTeamPoints} against a target of ${gameState.highestBid.amount}. They ${statusMsg}!`);
+    const bidderWon = bTotal >= gameState.highestBid.amount;
+
+    // Record stats permanently by player name without affecting gameplay
+    gameState.players.forEach(p => {
+        if(p.name.includes("(Spectator)")) return; // Skip spectators
+        // Strip out temporary host/spectator labels for clean keys
+        const cleanName = p.name.replace(" (Host)", "").replace(" (Spectator)", "").trim();
+        
+        if (!gameStats[cleanName]) {
+            gameStats[cleanName] = { gamesPlayed: 0, wins: 0, losses: 0 };
+        }
+        
+        gameStats[cleanName].gamesPlayed += 1;
+
+        const isBidderTeam = p.team === 'BIDDER_TEAM';
+        if ((bidderWon && isBidderTeam) || (!bidderWon && !isBidderTeam)) {
+            gameStats[cleanName].wins += 1;
+        } else {
+            gameStats[cleanName].losses += 1;
+        }
+    });
 }
 
 function startDeal() {
@@ -179,11 +195,22 @@ function startDeal() {
 function handlePlaceBid(playerId, amount) {
     if (gameState.phase !== 'BIDDING') return;
     const amt = parseInt(amount);
+
+    if (amt % 5 !== 0) {
+        // We throw an error that the UI can catch, or handle silently
+        return { error: "Bid must be a multiple of 5." }; 
+    }
     
     if (amt > gameState.highestBid.amount) {
         const player = gameState.players.find(p => p.id === playerId);
         gameState.highestBid = { playerId: playerId, amount: amt, playerName: player.name };
+        const activePlayers = gameState.players.filter(p => !p.hasFolded);
+        if (activePlayers.length === 1) {
+            gameState.phase = 'TRUMP_SELECTION';
+        }
+        return { success: true };
     }
+    return { error: "Bid must be higher than current highest." };
 }
 
 function handleFold(playerId) {
@@ -194,6 +221,12 @@ function handleFold(playerId) {
     if (player) player.hasFolded = true;
 
     const activePlayers = gameState.players.filter(p => !p.hasFolded);
+
+    if (activePlayers.length === 0) {
+        // Trigger a re-deal automatically
+        startDeal(); 
+        return;
+    }
     if (activePlayers.length === 1 && gameState.highestBid.playerId !== null) {
         gameState.phase = 'TRUMP_SELECTION';
     }

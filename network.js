@@ -29,7 +29,9 @@ document.getElementById('hostBtn').addEventListener('click', () => {
     if (!nameInput) { alert("Please enter your name."); return; }
     
     myName = nameInput + " (Host)";
-    peer = new Peer(); 
+    peer = new Peer();
+
+    gameState.spectators = [];
     
     peer.on('open', (id) => {
         myPeerId = id;
@@ -41,20 +43,18 @@ document.getElementById('hostBtn').addEventListener('click', () => {
     });
 
     peer.on('connection', (conn) => {
-        // Reject mid-game joiners
-        if (gameState.phase !== 'LOBBY' && gameState.phase !== 'GAMEOVER') {
-            conn.on('open', () => {
-                conn.send({ type: 'ERROR', message: 'Game already in progress.' });
-                setTimeout(() => conn.close(), 500);
-            });
-            return;
-        }
-
         connections[conn.peer] = conn;
         
         conn.on('data', (data) => {
             if (data.type === 'JOIN_LOBBY') {
-                gameState.players.push({ id: conn.peer, name: data.name, hand: [], wonCards: [], points: 0, currentBid: 0, team: 'UNKNOWN' });
+                if (gameState.phase !== 'LOBBY' && gameState.phase !== 'GAMEOVER') {
+                    // Add as spectator instead of rejecting
+                    gameState.spectators.push({ id: conn.peer, name: data.name + " (Spectator)" });
+                    // Send them a special flag so their UI knows they are spectating
+                    conn.send({ type: 'STATE_UPDATE', state: gameState, isSpectator: true });
+                } else {
+                    gameState.players.push({ id: conn.peer, name: data.name, hand: [], wonCards: [], points: 0, currentBid: 0, team: 'UNKNOWN' });
+                }
                 broadcastState();
             }
             if (data.type === 'ACTION_PLAY_CARD') { handlePlayCard(conn.peer, data.card); broadcastState(); }

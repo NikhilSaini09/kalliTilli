@@ -1,3 +1,10 @@
+window.addEventListener('beforeunload', (event) => {
+    if (gameState.phase !== 'LOBBY' || gameState.players.length > 1) {
+        event.preventDefault();
+        event.returnValue = ''; // Standard trigger for modern browsers
+    }
+});
+
 function switchView(viewId) {
     document.querySelectorAll('.view-container').forEach(el => el.style.display = 'none');
     document.getElementById(viewId).style.display = 'flex';
@@ -51,6 +58,8 @@ function renderGameBoard() {
     const trumpPanel = document.getElementById('trump-panel');
     const teamCardsContainer = document.getElementById('team-cards-container');
     const backToLobbyBtn = document.getElementById('backToLobbyBtn');
+    const scorecard = document.getElementById('scorecard-modal');
+    const modalBtn = document.getElementById('modalBackToLobbyBtn');
     
     myArea.innerHTML = '';
     boardArea.innerHTML = '';
@@ -114,7 +123,7 @@ function renderGameBoard() {
         if (gameState.phase === 'TRUMP_SELECTION' && gameState.highestBid.playerId === myPeerId) {
             trumpPanel.style.display = 'flex';
             teamCardsContainer.innerHTML = ''; 
-            let allowedCards = Math.max(1, Math.floor((gameState.players.length - 2) / 2));
+            let allowedCards = Math.floor((gameState.players.length - 2) / 2);
             
             for (let i = 0; i < allowedCards; i++) {
                 const selectorDiv = document.createElement('div');
@@ -134,6 +143,37 @@ function renderGameBoard() {
         } else {
             trumpPanel.style.display = 'none';
         }
+    }
+
+    if (gameState.phase === 'GAMEOVER') {
+        scorecard.style.display = 'block';
+        modalBtn.style.display = isHost ? 'block' : 'none';
+        
+        let bTeamHtml = ''; let bTotal = 0;
+        let dTeamHtml = ''; let dTotal = 0;
+        
+        gameState.players.forEach(p => {
+            if (p.team === 'BIDDER_TEAM') {
+                bTeamHtml += `<div>${p.name}: ${p.points}</div>`;
+                bTotal += p.points;
+            } else {
+                dTeamHtml += `<div>${p.name}: ${p.points}</div>`;
+                dTotal += p.points;
+            }
+        });
+        
+        document.getElementById('bidder-stats').innerHTML = bTeamHtml;
+        document.getElementById('defender-stats').innerHTML = dTeamHtml;
+        document.getElementById('bidder-total').textContent = bTotal;
+        document.getElementById('defender-total').textContent = dTotal;
+        document.getElementById('bid-target').textContent = gameState.highestBid.amount;
+        
+        const won = bTotal >= gameState.highestBid.amount;
+        document.getElementById('score-title').textContent = won ? "Bidder Team WON! 🎉" : "Bidder Team LOST! ❌";
+        document.getElementById('score-title').style.color = won ? "#4CAF50" : "#f44336";
+        
+    } else {
+        scorecard.style.display = 'none';
     }
 }
 
@@ -155,6 +195,61 @@ function requestPlayCard(card) {
     else if (hostConnection) hostConnection.send({ type: 'ACTION_PLAY_CARD', card: card });
 }
 
+function saveGame() {
+    const payload = {
+        gameState: gameState,
+        gameStats: gameStats
+    };
+    
+    const dataStr = JSON.stringify(payload, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', `kalli_tilli_backup_${Date.now()}.json`);
+    linkElement.click();
+}
+
+function loadGame(event) {
+    if (!isHost) {
+        alert("Only the room host can load save files.");
+        return;
+    }
+
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const parsed = JSON.parse(e.target.result);
+            
+            if (parsed.gameState) {
+                // Preserve current network IDs while taking game state data
+                const currentConnections = gameState.players.map(p => ({ id: p.id, name: p.name }));
+                
+                gameState = parsed.gameState;
+                gameStats = parsed.gameStats || {};
+
+                // Re-bind connected player IDs to loaded records
+                currentConnections.forEach((conn, index) => {
+                    if (gameState.players[index]) {
+                        gameState.players[index].id = conn.id;
+                    }
+                });
+
+                broadcastState();
+                alert("Game state and stats restored.");
+            } else {
+                throw new Error("Invalid structure");
+            }
+        } catch(err) {
+            alert("Failed to parse the save file.");
+        }
+    };
+    reader.readAsText(file);
+}
+
 // UI Bindings
 document.getElementById('startGameBtn').addEventListener('click', () => {
     if (isHost) { startDeal(); broadcastState(); }
@@ -163,6 +258,54 @@ document.getElementById('startGameBtn').addEventListener('click', () => {
 document.getElementById('backToLobbyBtn').addEventListener('click', () => {
     if (isHost) {
         gameState.phase = 'LOBBY';
+        if (gameState.spectators) {
+            gameState.spectators.forEach(s => {
+                // Strip the "(Spectator)" tag
+                const cleanName = s.name.replace(" (Spectator)", "");
+                gameState.players.push({ id: s.id, name: cleanName, hand: [], wonCards: [], points: 0, currentBid: 0, team: 'UNKNOWN' });
+            });
+            gameState.spectators = [];
+        }
+        broadcastState();
+    }
+});
+
+document.getElementById('modalBackToLobbyBtn').addEventListener('click', () => {
+    if (isHost) {
+        gameState.phase = 'LOBBY';
+        
+        // Merge any spectators into active players
+        if (gameState.spectators && gameState.spectators.length > 0) {
+            gameState.spectators.forEach(s => {
+                const cleanName = s.name.replace(" (Spectator)", "");
+                gameState.players.push({ 
+                    id: s.id, 
+                    name: cleanName, 
+                    hand: [], 
+                    wonCards: [], 
+                    points: 0, 
+                    currentBid: 0, 
+                    team: 'UNKNOWN' 
+                });
+            });
+            gameState.spectators = [];
+        }
+
+        // Reset round-specific player properties
+        gameState.players.forEach(p => {
+            p.hand = [];
+            p.wonCards = [];
+            p.points = 0;
+            p.currentBid = 0;
+            p.hasFolded = false;
+            p.team = 'UNKNOWN';
+        });
+
+        gameState.board = [];
+        gameState.highestBid = { playerId: null, amount: 0, playerName: "" };
+        gameState.trumpSuit = null;
+        gameState.calledCards = [];
+
         broadcastState();
     }
 });
@@ -170,8 +313,14 @@ document.getElementById('backToLobbyBtn').addEventListener('click', () => {
 document.getElementById('submitBidBtn').addEventListener('click', () => {
     const bid = document.getElementById('bidAmount').value;
     if (bid === "") return;
-    if (isHost) { handlePlaceBid(myPeerId, bid); broadcastState(); }
-    else if (hostConnection) hostConnection.send({ type: 'ACTION_PLACE_BID', amount: bid });
+    if (isHost) { 
+        const res = handlePlaceBid(myPeerId, bid); 
+        if (res && res.error) alert(res.error);
+        else broadcastState(); 
+    }
+    else if (hostConnection) {
+        hostConnection.send({ type: 'ACTION_PLACE_BID', amount: bid });
+    }
     document.getElementById('bidAmount').value = ''; 
 });
 
@@ -194,3 +343,6 @@ document.getElementById('setTrumpBtn').addEventListener('click', () => {
     if (isHost) { handleSetTrump(myPeerId, suit, chosenCards); broadcastState(); }
     else if (hostConnection) hostConnection.send({ type: 'ACTION_SET_TRUMP', suit: suit, cards: chosenCards });
 });
+
+document.getElementById('saveBtn')?.addEventListener('click', saveGame);
+document.getElementById('loadInput')?.addEventListener('change', loadGame);
