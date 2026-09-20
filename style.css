@@ -1,7 +1,7 @@
 * { box-sizing: border-box; font-family: sans-serif; }
 
 body {
-    background-color: #1b5e20; /* Darker casino green */
+    background-color: #1b5e20;
     margin: 0;
     padding: 10px;
     display: flex;
@@ -37,15 +37,14 @@ input[type="text"] { padding: 10px; border-radius: 5px; border: none; }
 /* The Poker Table */
 #poker-table {
     width: 100%;
-    max-width: 900px;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     background: #2e7d32;
-    border: 10px solid #5d4037; /* Wooden rim */
-    border-radius: 100px; /* Oval shape */
-    padding: 30px;
+    border: 10px solid #5d4037;
+    border-radius: 60px;
+    padding: 20px;
     box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
 }
 
@@ -65,7 +64,10 @@ input[type="text"] { padding: 10px; border-radius: 5px; border: none; }
 
 .opponent-cards {
     display: flex;
-    gap: -40px; /* Overlap face-down cards */
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 200px; /* Prevents stretching */
+    gap: -40px; 
 }
 
 #center-board {
@@ -80,21 +82,22 @@ input[type="text"] { padding: 10px; border-radius: 5px; border: none; }
 
 #my-area {
     display: flex;
+    flex-wrap: wrap; /* Fixes cards going off screen */
     justify-content: center;
-    gap: 10px;
+    gap: 5px;
     min-height: 120px;
 }
 
 /* Card Styling */
 .card {
-    width: 80px;
-    height: 120px;
+    width: 60px; /* Slightly smaller for large hands */
+    height: 90px;
     background: white;
-    border-radius: 8px;
+    border-radius: 6px;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: bold;
     box-shadow: 0 4px 8px rgba(0,0,0,0.4);
     border: 1px solid #ccc;
@@ -105,15 +108,11 @@ input[type="text"] { padding: 10px; border-radius: 5px; border: none; }
 .black { color: #212121; }
 
 .face-down {
-    background: repeating-linear-gradient(
-        45deg,
-        #b71c1c,
-        #b71c1c 10px,
-        #fff 10px,
-        #fff 20px
-    );
+    background: repeating-linear-gradient(45deg, #b71c1c, #b71c1c 10px, #fff 10px, #fff 20px);
     border: 2px solid white;
+    margin-left: -30px; /* Overlap effect for opponents */
 }
+.opponent-cards .face-down:first-child { margin-left: 0; }
 
 #my-area .card {
     cursor: pointer;

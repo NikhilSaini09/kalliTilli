@@ -5,11 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kalli Tilli</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Add PeerJS Library -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
-    <!-- New Network Controls -->
+    <!-- Lobby Menu -->
     <div id="network-menu">
         <input type="text" id="playerName" placeholder="Your Name (Required)">
         <button id="hostBtn">Host Game</button>
@@ -18,18 +17,54 @@
         <button id="joinBtn">Join Game</button>
     </div>
 
-    <!-- Game Controls (Host only for dealing) -->
-    <div id="controls" style="display: none;">
-        <button id="dealBtn">Deal</button>
-        <button id="saveBtn">Save Game</button>
-        <input type="file" id="loadInput" accept=".json">
-    </div>
+    <!-- Hidden until joined -->
+    <div id="game-container" style="display: none; width: 100%; max-width: 900px; display: flex; flex-direction: column; align-items: center;">
+        
+        <!-- Game Controls -->
+        <div id="controls" style="display: none; width: 100%;">
+            <div id="phase-display" style="color: white; font-weight: bold; margin-right: auto;">LOBBY</div>
+            <button id="dealBtn">Deal</button>
+            <button id="saveBtn">Save Game</button>
+            <input type="file" id="loadInput" accept=".json">
+        </div>
 
-    <!-- Poker Table Layout -->
-    <div id="poker-table">
-        <div id="opponents-area"></div>
-        <div id="center-board"></div>
-        <div id="my-area"></div>
+        <!-- Info Banner (Visible to all) -->
+        <div id="game-info" style="display: none; width: 100%; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center;">
+            <span id="bid-info"></span>
+            <span id="trump-info"></span>
+        </div>
+
+        <!-- Bidding Phase Input -->
+        <div id="bidding-panel" style="display: none; gap: 5px; align-items: center;">
+            <input type="number" id="bidAmount" placeholder="Raise Bid" min="0">
+            <button id="submitBidBtn" style="background-color: #4CAF50; color: white;">Raise</button>
+            <button id="foldBtn" style="background-color: #f44336; color: white;">Fold</button>
+        </div>
+
+        <!-- Trump Selection Input (Only highest bidder sees this) -->
+        <div id="trump-panel" style="display: none; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px;">
+            <div style="color: white; font-weight: bold;">Choose Cart (Trump):</div>
+            <select id="trumpSuitSelect" style="padding: 5px; font-size: 16px;">
+                <option value="♠">♠ Spades</option>
+                <option value="♥">♥ Hearts</option>
+                <option value="♦">♦ Diamonds</option>
+                <option value="♣">♣ Clubs</option>
+            </select>
+            
+            <div style="color: white; font-weight: bold; margin-top: 10px;">Choose Team Cards:</div>
+            <div id="team-cards-container" style="display: flex; flex-direction: column; gap: 5px;">
+                <!-- Dropdowns will be injected here dynamically -->
+            </div>
+            
+            <button id="setTrumpBtn" style="background-color: #2196F3; color: white; margin-top: 10px;">Confirm & Start Game</button>
+        </div>
+
+        <!-- Poker Table Layout -->
+        <div id="poker-table">
+            <div id="opponents-area"></div>
+            <div id="center-board"></div>
+            <div id="my-area"></div>
+        </div>
     </div>
 
     <script src="game.js"></script>
