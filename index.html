@@ -29,6 +29,14 @@
         <div id="lobby-players" style="width: 100%; color: white; display: flex; flex-direction: column; gap: 10px;"></div> 
         
         <button id="startGameBtn" style="display: none; background: #4CAF50; color: white; margin-top: 20px; width: 100%;">Start Game</button>
+
+        <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+            <button id="saveBtn" style="background: #607d8b; color: white;">Download Save</button>
+            <label for="loadInput" style="background: #795548; color: white; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+                Load Save
+            </label>
+            <input type="file" id="loadInput" accept=".json" style="display: none;">
+        </div>
     </div>
 
     <!-- VIEW 3: Active Game Board -->
@@ -45,7 +53,7 @@
 
             <!-- Bidding Phase Input -->
             <div id="bidding-panel" style="display: none; gap: 5px; justify-content: center; margin-bottom: 10px;">
-                <input type="number" id="bidAmount" placeholder="Raise Bid" min="0">
+                <input type="number" id="bidAmount" placeholder="Raise Bid" min="80" step="5">
                 <button id="submitBidBtn" style="background-color: #4CAF50; color: white;">Raise</button>
                 <button id="foldBtn" style="background-color: #f44336; color: white;">Fold</button>
             </div>
@@ -72,6 +80,31 @@
             <div id="opponents-area"></div>
             <div id="center-board"></div>
             <div id="my-area"></div>
+        </div>
+
+        <!-- Scorecard Modal -->
+        <div id="scorecard-modal" style="display: none; position: absolute; top: 10%; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 20px; border-radius: 10px; border: 2px solid #ffd700; z-index: 1000; width: 80%; max-width: 500px; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.8);">
+            <h2 id="score-title">Round Over</h2>
+            <hr>
+            <div style="display: flex; justify-content: space-between; margin: 10px 0;">
+                <div style="text-align: left; width: 45%;">
+                    <h3 style="color: #ff9800;">🔥 Bidder Team</h3>
+                    <div id="bidder-stats"></div>
+                    <br>
+                    <strong>Total: <span id="bidder-total"></span></strong><br>
+                    <small>Target: <span id="bid-target"></span></small>
+                </div>
+                <div style="border-left: 1px solid gray;"></div>
+                <div style="text-align: left; width: 45%; padding-left: 10px;">
+                    <h3 style="color: #03a9f4;">🛡️ Defender Team</h3>
+                    <div id="defender-stats"></div>
+                    <br>
+                    <strong>Total: <span id="defender-total"></span></strong>
+                </div>
+            </div>
+            <hr>
+            <!-- Moved the back to lobby button into the modal -->
+            <button id="modalBackToLobbyBtn" style="display: none; background: #f44336; color: white; width: 100%; margin-top: 10px;">Return to Lobby</button>
         </div>
     </div>
 
