@@ -29,7 +29,16 @@ document.getElementById('hostBtn').addEventListener('click', () => {
     if (!nameInput) { alert("Please enter your name."); return; }
     
     myName = nameInput + " (Host)";
-    peer = new Peer();
+    peer = new Peer({
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' }
+            ]
+        }
+    });
 
     gameState.spectators = [];
     
@@ -72,7 +81,16 @@ document.getElementById('joinBtn').addEventListener('click', () => {
     if (!nameInput || !roomId) { alert("Name and Room ID required."); return; }
     
     myName = nameInput;
-    peer = new Peer();
+    peer = new Peer({
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' }
+            ]
+        }
+    });
     
     peer.on('open', (id) => {
         myPeerId = id;
