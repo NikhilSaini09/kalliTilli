@@ -1,5 +1,5 @@
 const suits = ['♠', '♥', '♦', '♣'];
-const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']; // Normal 52 cards
+const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
 function getCardPoints(card) {
     if (card.suit === '♠' && card.value === '3') return 30;
@@ -118,8 +118,12 @@ function renderState() {
     const me = gameState.players.find(p => p.id === myPeerId);
     if (me) {
         me.hand.forEach(card => {
-            const cardEl = createCardElement(card, true);
-            cardEl.addEventListener('click', () => requestPlayCard(card));
+            const playable = isCardPlayable(myPeerId, card);
+            const cardEl = createCardElement(card, true, playable);
+            
+            if (playable) {
+                cardEl.addEventListener('click', () => requestPlayCard(card));
+            }
             myArea.appendChild(cardEl);
         });
     }
@@ -188,10 +192,16 @@ function renderState() {
     }
 }
 
-function createCardElement(card) {
+function createCardElement(card, isClickable, isPlayable = true) {
     const cardEl = document.createElement('div');
     cardEl.className = `card ${card.suit === '♥' || card.suit === '♦' ? 'red' : 'black'}`;
     cardEl.textContent = `${card.value}${card.suit}`;
+    
+    // Dim unplayable cards so the user knows they can't click them
+    if (isClickable && !isPlayable) {
+        cardEl.style.opacity = '0.5';
+        cardEl.style.cursor = 'not-allowed';
+    }
     return cardEl;
 }
 
@@ -212,7 +222,7 @@ document.getElementById('hostBtn').addEventListener('click', () => {
         myPeerId = id;
         isHost = true;
         // Host adds themselves to the player array
-        gameState.players.push({ id: myPeerId, name: myName, hand: [], points: 0, currentBid: 0, team: 'UNKNOWN' });
+        gameState.players.push({ id: myPeerId, name: myName, hand: [], wonCards: [], points: 0, currentBid: 0, team: 'UNKNOWN' });
         
         enterGameUI();
         document.getElementById('roomIdDisplay').textContent = `Room ID: ${id}`;
@@ -235,6 +245,7 @@ document.getElementById('hostBtn').addEventListener('click', () => {
                     id: conn.peer,
                     name: data.name,
                     hand: [],
+                    wonCards: [],
                     points: 0,
                     currentBid: 0,
                     team: 'UNKNOWN'
@@ -243,7 +254,6 @@ document.getElementById('hostBtn').addEventListener('click', () => {
             }
             if (data.type === 'ACTION_PLAY_CARD') handlePlayCard(conn.peer, data.card);
             if (data.type === 'ACTION_PLACE_BID') handlePlaceBid(conn.peer, data.amount);
-            if (data.type === 'ACTION_SET_TRUMP') handleSetTrump(conn.peer, data.suit, data.cards);
             if (data.type === 'ACTION_FOLD') handleFold(conn.peer);
             if (data.type === 'ACTION_SET_TRUMP') handleSetTrump(conn.peer, data.suit, data.cards);
         });
@@ -251,9 +261,19 @@ document.getElementById('hostBtn').addEventListener('click', () => {
 });
 
 document.getElementById('joinBtn').addEventListener('click', () => {
-    myName = document.getElementById('playerName').value || "Player";
-    const roomId = document.getElementById('joinId').value;
-    if (!roomId) return;
+    const nameInput = document.getElementById('playerName').value.trim();
+    if (!nameInput) {
+        alert("You must enter a name to join a game.");
+        return;
+    }
+    
+    const roomId = document.getElementById('joinId').value.trim();
+    if (!roomId) {
+        alert("Enter a Room ID.");
+        return;
+    }
+    
+    myName = nameInput;
 
     peer = new Peer();
     peer.on('open', (id) => {
@@ -275,12 +295,31 @@ document.getElementById('joinBtn').addEventListener('click', () => {
     });
 });
 
+function isCardPlayable(playerId, card) {
+    if (gameState.phase !== 'PLAYING') return false;
+    
+    const playerIndex = gameState.players.findIndex(p => p.id === playerId);
+    if (gameState.turnIndex !== playerIndex) return false; // Not their turn
+
+    if (gameState.board.length === 0) return true; // First player can lead any card
+
+    const leadSuit = gameState.board[0].suit;
+    if (card.suit === leadSuit) return true; // Following suit is always legal
+
+    // If they didn't follow suit, check if they are hiding the suit in their hand
+    const hasLeadSuit = gameState.players[playerIndex].hand.some(c => c.suit === leadSuit);
+    if (hasLeadSuit) return false; // Must follow suit if possible
+
+    return true; // Doesn't have the lead suit, can legally play a different suit/trump
+}
+
 // --- Action Logic ---
 function requestPlayCard(card) {
-    if (gameState.phase !== 'PLAYING') {
-        alert("Wait for the playing phase!");
+    if (!isCardPlayable(myPeerId, card)) {
+        alert("You cannot play this card right now.");
         return;
     }
+
     if (isHost) {
         handlePlayCard(myPeerId, card);
     } else if (hostConnection) {
@@ -290,6 +329,7 @@ function requestPlayCard(card) {
 
 function handlePlayCard(playerId, playedCard) {
     if (!isHost) return;
+    if (!isCardPlayable(playerId, playedCard)) return;
 
     const playerIndex = gameState.players.findIndex(p => p.id === playerId);
     if (playerIndex === -1) return;
@@ -298,9 +338,102 @@ function handlePlayCard(playerId, playedCard) {
     const cardIndex = player.hand.findIndex(c => c.id === playedCard.id);
     if (cardIndex !== -1) {
         const [card] = player.hand.splice(cardIndex, 1);
+        card.playedBy = playerId; 
         gameState.board.push(card);
+        
+        // --- TEAM REVEAL LOGIC ---
+        const cardStr = `${card.value}${card.suit}`;
+        if (gameState.calledCards.includes(cardStr)) {
+            player.team = 'BIDDER_TEAM';
+            gameState.calledCards = gameState.calledCards.filter(c => c !== cardStr);
+            // In a real UI, you could trigger a toast notification here
+        }
+
+        // Check if trick is complete (everyone played one card)
+        if (gameState.board.length === gameState.players.length) {
+            // Lock the board to prevent players from throwing cards during the timeout
+            gameState.phase = 'EVALUATION';
+            broadcastState(); // Tell clients the board is locked
+            
+            setTimeout(() => {
+                evaluateTrick();
+            }, 2000); 
+        } else {
+            // Only advance the turn if the trick is still ongoing
+            gameState.turnIndex = (gameState.turnIndex + 1) % gameState.players.length;
+            broadcastState();
+        }
+    }
+}
+
+function evaluateTrick() {
+    const leadSuit = gameState.board[0].suit;
+    let winningCard = gameState.board[0];
+
+    // Determine the highest card
+    for (let i = 1; i < gameState.board.length; i++) {
+        const card = gameState.board[i];
+        const isTrump = card.suit === gameState.trumpSuit;
+        const winningIsTrump = winningCard.suit === gameState.trumpSuit;
+
+        if (isTrump && !winningIsTrump) {
+            winningCard = card;
+        } else if ((isTrump && winningIsTrump) || (!isTrump && !winningIsTrump && card.suit === leadSuit)) {
+            if (getCardRank(card) > getCardRank(winningCard)) {
+                winningCard = card;
+            }
+        }
+    }
+
+    // Allocate points to the winner
+    const trickPoints = gameState.board.reduce((sum, c) => sum + getCardPoints(c), 0);
+    const winnerIndex = gameState.players.findIndex(p => p.id === winningCard.playedBy);
+
+    gameState.players[winnerIndex].points += trickPoints;
+    gameState.players[winnerIndex].wonCards.push(...gameState.board);
+
+    // The winner of the trick gets to start the next trick
+    gameState.turnIndex = winnerIndex;
+    gameState.board = []; // Clear the table
+
+    // Check if the round is over
+    if (gameState.players[0].hand.length === 0) {
+        evaluateRoundEnd();
+    } else {
+        gameState.phase = 'PLAYING';
         broadcastState();
     }
+}
+
+function evaluateRoundEnd() {
+    gameState.phase = 'GAMEOVER';
+    
+    // Anyone whose team is still 'UNKNOWN' is placed on the defending team
+    gameState.players.forEach(p => {
+        if (p.team === 'UNKNOWN') p.team = 'DEFENDER_TEAM';
+    });
+
+    let bidderTeamPoints = 0;
+    let defenderTeamPoints = 0;
+
+    let bidderNames = [];
+    let defenderNames = [];
+
+    gameState.players.forEach(p => {
+        if (p.team === 'BIDDER_TEAM') {
+            bidderTeamPoints += p.points;
+            bidderNames.push(p.name);
+        } else {
+            defenderTeamPoints += p.points;
+            defenderNames.push(p.name);
+        }
+    });
+
+    const bidMet = bidderTeamPoints >= gameState.highestBid.amount;
+    
+    // Broadcast the final calculated state so clients can render the scorecard
+    broadcastState(); 
+    alert(`Round Over! Bidder Team (${bidderNames.join(', ')}) got ${bidderTeamPoints} (Target: ${gameState.highestBid.amount}). They ${bidMet ? 'WON' : 'LOST'}!`);
 }
 
 document.getElementById('dealBtn').addEventListener('click', () => {
@@ -353,7 +486,6 @@ function handleFold(playerId) {
     
     // The current highest bidder is locked and cannot fold
     if (gameState.highestBid.playerId === playerId) {
-        alert("You have the highest bid, you cannot fold!");
         return;
     }
 
@@ -393,6 +525,11 @@ document.getElementById('submitBidBtn').addEventListener('click', () => {
 });
 
 document.getElementById('foldBtn').addEventListener('click', () => {
+    if (gameState.highestBid.playerId === myPeerId) {
+        alert("You have the highest bid, you cannot fold!");
+        return;
+    }
+
     if (isHost) handleFold(myPeerId);
     else if (hostConnection) hostConnection.send({ type: 'ACTION_FOLD' });
 });
