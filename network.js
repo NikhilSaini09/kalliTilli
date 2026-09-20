@@ -1,0 +1,101 @@
+let myName = "";
+let myPeerId = null; 
+let peer = null;
+let isHost = false;
+let connections = {}; 
+let hostConnection = null;
+
+function broadcastState() {
+    if (!isHost) return;
+    Object.values(connections).forEach(conn => {
+        conn.send({ type: 'STATE_UPDATE', state: gameState });
+    });
+    renderState(); 
+}
+
+function kickPlayer(targetId) {
+    if (!isHost) return;
+    if (connections[targetId]) {
+        connections[targetId].send({ type: 'KICKED' });
+        connections[targetId].close();
+        delete connections[targetId];
+    }
+    gameState.players = gameState.players.filter(p => p.id !== targetId);
+    broadcastState();
+}
+
+document.getElementById('hostBtn').addEventListener('click', () => {
+    const nameInput = document.getElementById('playerName').value.trim();
+    if (!nameInput) { alert("Please enter your name."); return; }
+    
+    myName = nameInput + " (Host)";
+    peer = new Peer(); 
+    
+    peer.on('open', (id) => {
+        myPeerId = id;
+        isHost = true;
+        gameState.players.push({ id: myPeerId, name: myName, hand: [], wonCards: [], points: 0, currentBid: 0, team: 'UNKNOWN' });
+        
+        document.getElementById('roomIdDisplay').textContent = `Room ID: ${id}`;
+        switchView('view-lobby');
+    });
+
+    peer.on('connection', (conn) => {
+        // Reject mid-game joiners
+        if (gameState.phase !== 'LOBBY' && gameState.phase !== 'GAMEOVER') {
+            conn.on('open', () => {
+                conn.send({ type: 'ERROR', message: 'Game already in progress.' });
+                setTimeout(() => conn.close(), 500);
+            });
+            return;
+        }
+
+        connections[conn.peer] = conn;
+        
+        conn.on('data', (data) => {
+            if (data.type === 'JOIN_LOBBY') {
+                gameState.players.push({ id: conn.peer, name: data.name, hand: [], wonCards: [], points: 0, currentBid: 0, team: 'UNKNOWN' });
+                broadcastState();
+            }
+            if (data.type === 'ACTION_PLAY_CARD') { handlePlayCard(conn.peer, data.card); broadcastState(); }
+            if (data.type === 'ACTION_PLACE_BID') { handlePlaceBid(conn.peer, data.amount); broadcastState(); }
+            if (data.type === 'ACTION_FOLD') { handleFold(conn.peer); broadcastState(); }
+            if (data.type === 'ACTION_SET_TRUMP') { handleSetTrump(conn.peer, data.suit, data.cards); broadcastState(); }
+        });
+    });
+});
+
+document.getElementById('joinBtn').addEventListener('click', () => {
+    const nameInput = document.getElementById('playerName').value.trim();
+    const roomId = document.getElementById('joinId').value.trim();
+    
+    if (!nameInput || !roomId) { alert("Name and Room ID required."); return; }
+    
+    myName = nameInput;
+    peer = new Peer();
+    
+    peer.on('open', (id) => {
+        myPeerId = id;
+        hostConnection = peer.connect(roomId);
+        
+        hostConnection.on('open', () => {
+            hostConnection.send({ type: 'JOIN_LOBBY', name: myName });
+            switchView('view-lobby');
+        });
+
+        hostConnection.on('data', (data) => {
+            if (data.type === 'STATE_UPDATE') {
+                gameState = data.state;
+                renderState(); 
+            }
+            if (data.type === 'KICKED') {
+                alert("You have been kicked by the host.");
+                location.reload();
+            }
+            if (data.type === 'ERROR') {
+                alert(data.message);
+                location.reload();
+            }
+        });
+    });
+});

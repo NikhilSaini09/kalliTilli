@@ -8,55 +8,63 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
-    <!-- Lobby Menu -->
-    <div id="network-menu">
-        <input type="text" id="playerName" placeholder="Your Name (Required)">
-        <button id="hostBtn">Host Game</button>
-        <span id="roomIdDisplay"></span>
-        <input type="text" id="joinId" placeholder="Enter Room ID">
-        <button id="joinBtn">Join Game</button>
+
+    <!-- VIEW 1: Landing Page -->
+    <div id="view-landing" class="view-container" style="display: flex; flex-direction: column; gap: 15px; align-items: center; margin-top: 50px;">
+        <h1 style="color: white;">Kalli Tilli</h1>
+        <div style="background: rgba(0,0,0,0.5); padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+            <input type="text" id="playerName" placeholder="Your Name (Required)">
+            <button id="hostBtn" style="background: #4CAF50; color: white;">Create Room</button>
+            <hr style="width: 100%;">
+            <input type="text" id="joinId" placeholder="Enter Room ID">
+            <button id="joinBtn" style="background: #2196F3; color: white;">Join Room</button>
+        </div>
     </div>
 
-    <!-- Hidden until joined -->
-    <div id="game-container" style="display: none; width: 100%; max-width: 900px; display: flex; flex-direction: column; align-items: center;">
+    <!-- VIEW 2: Waiting Room (Lobby) -->
+    <div id="view-lobby" class="view-container" style="display: none; flex-direction: column; align-items: center; width: 100%; max-width: 500px; margin-top: 50px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 8px;">
+        <h2 style="color: white;">Waiting Room</h2>
+        <div id="roomIdDisplay" style="margin-bottom: 15px; color: yellow; font-size: 18px; font-weight: bold;"></div>
         
-        <!-- Game Controls -->
-        <div id="controls" style="display: none; width: 100%;">
-            <div id="phase-display" style="color: white; font-weight: bold; margin-right: auto;">LOBBY</div>
-            <button id="dealBtn">Deal</button>
-            <button id="saveBtn">Save Game</button>
-            <input type="file" id="loadInput" accept=".json">
-        </div>
+        <div id="lobby-players" style="width: 100%; color: white; display: flex; flex-direction: column; gap: 10px;"></div> 
+        
+        <button id="startGameBtn" style="display: none; background: #4CAF50; color: white; margin-top: 20px; width: 100%;">Start Game</button>
+    </div>
 
-        <!-- Info Banner (Visible to all) -->
-        <div id="game-info" style="display: none; width: 100%; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center;">
-            <span id="bid-info"></span>
-            <span id="trump-info"></span>
-        </div>
-
-        <!-- Bidding Phase Input -->
-        <div id="bidding-panel" style="display: none; gap: 5px; align-items: center;">
-            <input type="number" id="bidAmount" placeholder="Raise Bid" min="0">
-            <button id="submitBidBtn" style="background-color: #4CAF50; color: white;">Raise</button>
-            <button id="foldBtn" style="background-color: #f44336; color: white;">Fold</button>
-        </div>
-
-        <!-- Trump Selection Input (Only highest bidder sees this) -->
-        <div id="trump-panel" style="display: none; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px;">
-            <div style="color: white; font-weight: bold;">Choose Cart (Trump):</div>
-            <select id="trumpSuitSelect" style="padding: 5px; font-size: 16px;">
-                <option value="♠">♠ Spades</option>
-                <option value="♥">♥ Hearts</option>
-                <option value="♦">♦ Diamonds</option>
-                <option value="♣">♣ Clubs</option>
-            </select>
+    <!-- VIEW 3: Active Game Board -->
+    <div id="view-game" class="view-container" style="display: none; width: 100%; max-width: 900px; flex-direction: column; align-items: center;">
+        
+        <!-- Game Controls & Info -->
+        <div id="controls" style="width: 100%;">
+            <div id="phase-display" style="color: white; font-weight: bold; margin-right: auto; width: 100%; text-align: center; margin-bottom: 10px;">Phase: LOBBY</div>
             
-            <div style="color: white; font-weight: bold; margin-top: 10px;">Choose Team Cards:</div>
-            <div id="team-cards-container" style="display: flex; flex-direction: column; gap: 5px;">
-                <!-- Dropdowns will be injected here dynamically -->
+            <div id="game-info" style="display: none; width: 100%; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center;">
+                <span id="bid-info"></span><br>
+                <span id="trump-info"></span>
+            </div>
+
+            <!-- Bidding Phase Input -->
+            <div id="bidding-panel" style="display: none; gap: 5px; justify-content: center; margin-bottom: 10px;">
+                <input type="number" id="bidAmount" placeholder="Raise Bid" min="0">
+                <button id="submitBidBtn" style="background-color: #4CAF50; color: white;">Raise</button>
+                <button id="foldBtn" style="background-color: #f44336; color: white;">Fold</button>
+            </div>
+
+            <!-- Trump Selection Input -->
+            <div id="trump-panel" style="display: none; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                <div style="color: white; font-weight: bold;">Choose Cart (Trump):</div>
+                <select id="trumpSuitSelect" style="padding: 5px; font-size: 16px;">
+                    <option value="♠">♠ Spades</option>
+                    <option value="♥">♥ Hearts</option>
+                    <option value="♦">♦ Diamonds</option>
+                    <option value="♣">♣ Clubs</option>
+                </select>
+                <div style="color: white; font-weight: bold; margin-top: 10px;">Choose Team Cards:</div>
+                <div id="team-cards-container" style="display: flex; flex-direction: column; gap: 5px;"></div>
+                <button id="setTrumpBtn" style="background-color: #2196F3; color: white; margin-top: 10px;">Confirm & Start</button>
             </div>
             
-            <button id="setTrumpBtn" style="background-color: #2196F3; color: white; margin-top: 10px;">Confirm & Start Game</button>
+            <button id="backToLobbyBtn" style="display: none; background: #f44336; color: white; margin-bottom: 10px;">Return to Lobby</button>
         </div>
 
         <!-- Poker Table Layout -->
@@ -67,6 +75,9 @@
         </div>
     </div>
 
+    <!-- Scripts must load in this strict order -->
     <script src="game.js"></script>
+    <script src="ui.js"></script>
+    <script src="network.js"></script>
 </body>
 </html>
